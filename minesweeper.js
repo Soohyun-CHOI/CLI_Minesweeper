@@ -24,7 +24,7 @@ const init = () => {
 }
 
 const createMap = (width, height, cntOfMine) => {
-    map = [];  // map 초기
+    map = [];  // map 초기화
     const mineArray = new Array(width * height).fill(0);
     mineArray.forEach((e, i) => {
         if (i < cntOfMine) mineArray[i] = 1;
