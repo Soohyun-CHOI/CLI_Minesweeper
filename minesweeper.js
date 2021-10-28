@@ -46,6 +46,33 @@ const createMap = (width, height, cntOfMine) => {
     }
 }
 
+// 결과 map 을 보여주는 함수
+const showOpenMap = () => {
+    for (let i = 0; i < height; i++) {
+        let str = "";
+        for (let j = 0; j < width; j++) {
+            const neighbors = getNeighbors(j, i, j, i);
+            map[i][j].cntOfNeighbors = neighbors.filter(neighbor => neighbor.isMine === 1).length;
+            const cell = map[i][j].isMine ? "x" : map[i][j].cntOfNeighbors;
+            str += cell;
+        }
+        console.log(str);
+    }
+}
+
+// 현재 map 을 보여주는 함수
+const showMap = () => {
+    for (let i = 0; i < map.length; i++) {
+        const row = map[i];
+        let str = "";
+        for (let j = 0; j < row.length; j++) {
+            const cell = row[j].revealed ? row[j].cntOfNeighbors : "o";
+            str += cell;
+        }
+        console.log(str);
+    }
+}
+
 // 게임 종료 시 일괄적으로 실행되는 함수
 const gameEnd = () => {
     showOpenMap();
@@ -57,55 +84,37 @@ const gameEnd = () => {
     })
 }
 
-// 결과 map 을 보여주는 함수
-const showOpenMap = () => {
-    for (let i = 0; i < map.length; i++) {
-        const row = map[i];
-        let str = '';
-        for (let j = 0; j < row.length; j++) {
-            const cell = row[j].isMine ? "x" : "o";
-            str += cell;
-        }
-        console.log(str);
-    }
-}
-
-// 현재 map 을 보여주는 함수
-const showMap = () => {
-    for (let i = 0; i < map.length; i++) {
-        const row = map[i];
-        let str = '';
-        for (let j = 0; j < row.length; j++) {
-            const cell = row[j].revealed ? row[j].cntOfNeighbors : "o";
-            str += cell
-        }
-        console.log(str);
-    }
-}
-
 // 게임에서 패배했을 시 실행되는 함수
 const gameOver = () => {
     gameEnd();
 }
 
-// 지뢰가 아닌 cell 선택 시 실행되는 함수
-const revealMine = (x, y) => {
-    const revealedCell = map[y][x];
-    revealedCell.revealed = true;
 
-    // 주변 8칸 탐색 (가장자리일 경우 고려)
+// 주변 8칸 가져오기 (가장자리일 경우 고려)
+const getNeighbors = (x, y, init_x, init_y) => {
     const neighbors = [];
     for (let i = Math.max(0, y - 1); i <= Math.min(height - 1, y + 1); i++) {
         for (let j = Math.max(0, x - 1); j <= Math.min(width - 1, x + 1); j++) {
-            if (!map[i][j].revealed) neighbors.push(map[i][j]);  // 중심 cell 제외 + 무한루프 방지
+            const cell = map[i][j]
+            if (cell !== map[y][x] && cell !== map[init_y][init_x]) neighbors.push(map[i][j]);  // 가운데 cell 제외 + 무한루프 방지
         }
     }
+    return neighbors
+}
+
+// 지뢰가 아닌 cell 선택 시 실행되는 함수
+const revealMine = (x, y, init_x, init_y) => {
+    // core_x, core_y: 초기 좌표 (무한루프 방지)
+    const revealedCell = map[y][x];
+    revealedCell.revealed = true;
+
+    const neighbors = getNeighbors(x, y, init_x, init_y);
     revealedCell.cntOfNeighbors = neighbors.filter(neighbor => neighbor.isMine === 1).length;
 
     // 주변 지뢰가 0개일 경우 주변 8칸 모두 열기
     if (revealedCell.cntOfNeighbors === 0) {
         for (let neighbor of neighbors) {
-            revealMine(neighbor.x, neighbor.y);
+            revealMine(neighbor.x, neighbor.y, x, y);
         }
     }
 }
@@ -128,18 +137,17 @@ const gameWin = () => {
 
 // cell 을 선택하는 함수
 const waitUserInput = () => {
-    showOpenMap()
-    console.log(" ")
     showMap();
     rl.question('탐색할 좌표를 입력하세요.', (line) => {
         const [x, y] = line.split(',').map(e => parseInt(e));
         console.log(map[y][x]);
         if (map[y][x].isMine === 1) {
-            console.log('game over');
+            console.log("game over");
             gameOver();
         } else {
-            revealMine(x, y);
+            revealMine(x, y, x, y);
             if (isWin()) {
+                console.log("모든 지뢰를 다 찾았습니다!");
                 gameWin();
             } else {
                 waitUserInput()
