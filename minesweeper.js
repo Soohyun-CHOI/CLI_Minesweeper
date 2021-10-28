@@ -9,17 +9,42 @@ let width, height, cntOfMine;
 let map = [];
 
 const init = () => {
-    rl.question('가로 크기를 입력하세요.', function (line) {
-        width = parseInt(line);
-        rl.question('세로 크기를 입력하세요.', function (line) {
-            height = parseInt(line);
-            rl.question('지뢰 개수를 입력하세요.', function (line) {
-                cntOfMine = parseInt(line);
-                console.log(width, height, cntOfMine);
+    const askCntOfMine = () => {
+        rl.question("지뢰 개수를 입력하세요.", function (line) {
+            cntOfMine = parseInt(line);
+            if (isNaN(cntOfMine)) {
+                console.log("\n숫자를 입력해주세요.");
+                askCntOfMine();
+            } else if (cntOfMine < 0 || cntOfMine > width * height) {
+                console.log(`\n0 이상 ${width * height} 이하의 숫자를 입력해주세요.`);
+                askCntOfMine();
+            } else {
                 createMap(width, height, cntOfMine);
                 waitUserInput();
-            });
+            }
         });
+    }
+    const askHeight = () => {
+        rl.question("세로 크기를 입력하세요.", function (line) {
+            height = parseInt(line);
+            if (isNaN(height)) {
+                console.log("\n숫자를 입력해주세요.");
+                askHeight();
+            } else if (height < 0 || height > 30) {
+                console.log("\n0 이상 30 이하의 숫자를 입력해주세요.");
+                askHeight();
+            } else askCntOfMine();
+        });
+    }
+    rl.question("가로 크기를 입력하세요.", function (line) {
+        width = parseInt(line);
+        if (isNaN(width)) {
+            console.log("\n숫자를 입력해주세요.");
+            init();
+        } else if (width < 0 || width > 5) {
+            console.log("\n0 이상 5 이하의 숫자를 입력해주세요.");
+            init();
+        } else askHeight();
     });
 }
 
@@ -51,7 +76,7 @@ const showOpenMap = () => {
     for (let i = 0; i < height; i++) {
         let str = "";
         for (let j = 0; j < width; j++) {
-            const neighbors = getNeighbors(j, i, j, i);
+            const neighbors = getNeighbors(j, i);
             map[i][j].cntOfNeighbors = neighbors.filter(neighbor => neighbor.isMine === 1).length;
             const cell = map[i][j].isMine ? "x" : map[i][j].cntOfNeighbors;
             str += cell;
@@ -73,48 +98,48 @@ const showMap = () => {
     }
 }
 
-// 게임 종료 시 일괄적으로 실행되는 함수
-const gameEnd = () => {
-    showOpenMap();
+// 게임 종료 후 재시작 함수
+const handleTryAgain = () => {
     rl.question("게임을 재시작하겠습니까?", function (line) {
         if (line === "Y") {
             createMap(width, height, cntOfMine);
             waitUserInput();
+        } else {
+            handleTryAgain();
         }
     })
 }
 
 // 게임에서 패배했을 시 실행되는 함수
 const gameOver = () => {
-    gameEnd();
+    showOpenMap();
+    handleTryAgain();
 }
 
-
-// 주변 8칸 가져오기 (가장자리일 경우 고려)
-const getNeighbors = (x, y, init_x, init_y) => {
+// 주변 8칸 중 열리지 않은 칸 가져오기 (가장자리일 경우 고려)
+const getNeighbors = (x, y) => {
     const neighbors = [];
     for (let i = Math.max(0, y - 1); i <= Math.min(height - 1, y + 1); i++) {
         for (let j = Math.max(0, x - 1); j <= Math.min(width - 1, x + 1); j++) {
-            const cell = map[i][j]
-            if (cell !== map[y][x] && cell !== map[init_y][init_x]) neighbors.push(map[i][j]);  // 가운데 cell 제외 + 무한루프 방지
+            if (!map[i][j].revealed) neighbors.push(map[i][j]);  // 가운데 cell 제외 + 무한루프 방지
         }
     }
     return neighbors
 }
 
 // 지뢰가 아닌 cell 선택 시 실행되는 함수
-const revealMine = (x, y, init_x, init_y) => {
-    // core_x, core_y: 초기 좌표 (무한루프 방지)
+const revealMine = (x, y) => {
+    // init_x, init_y: 초기 좌표 (무한루프 방지)
     const revealedCell = map[y][x];
     revealedCell.revealed = true;
 
-    const neighbors = getNeighbors(x, y, init_x, init_y);
+    const neighbors = getNeighbors(x, y);
     revealedCell.cntOfNeighbors = neighbors.filter(neighbor => neighbor.isMine === 1).length;
 
     // 주변 지뢰가 0개일 경우 주변 8칸 모두 열기
     if (revealedCell.cntOfNeighbors === 0) {
         for (let neighbor of neighbors) {
-            revealMine(neighbor.x, neighbor.y, x, y);
+            revealMine(neighbor.x, neighbor.y);
         }
     }
 }
@@ -132,7 +157,8 @@ const isWin = () => {
 
 // 게임에서 승리했을 시 실행되는 함수
 const gameWin = () => {
-    gameEnd();
+    showOpenMap();
+    handleTryAgain();
 }
 
 // cell 을 선택하는 함수
@@ -140,14 +166,13 @@ const waitUserInput = () => {
     showMap();
     rl.question('탐색할 좌표를 입력하세요.', (line) => {
         const [x, y] = line.split(',').map(e => parseInt(e));
-        console.log(map[y][x]);
         if (map[y][x].isMine === 1) {
-            console.log("game over");
+            console.log("GAME OVER");
             gameOver();
         } else {
-            revealMine(x, y, x, y);
+            revealMine(x, y);
             if (isWin()) {
-                console.log("모든 지뢰를 다 찾았습니다!");
+                console.log("YOU WIN");
                 gameWin();
             } else {
                 waitUserInput()
