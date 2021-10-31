@@ -11,12 +11,15 @@ let map = [];
 const init = () => {
     const askCntOfMine = () => {
         rl.question("지뢰 개수를 입력하세요.", function (line) {
-            cntOfMine = parseInt(line);
+            cntOfMine = Number(line);
             if (isNaN(cntOfMine)) {
                 console.log("\n숫자를 입력해주세요.");
                 askCntOfMine();
             } else if (cntOfMine < 0 || cntOfMine > width * height) {
                 console.log(`\n0 이상 ${width * height} 이하의 숫자를 입력해주세요.`);
+                askCntOfMine();
+            } else if (cntOfMine !== parseInt(cntOfMine)) {
+                console.log("\n정수를 입력하세요.");
                 askCntOfMine();
             } else {
                 createMap(width, height, cntOfMine);
@@ -26,23 +29,29 @@ const init = () => {
     }
     const askHeight = () => {
         rl.question("세로 크기를 입력하세요.", function (line) {
-            height = parseInt(line);
+            height = Number(line);
             if (isNaN(height)) {
                 console.log("\n숫자를 입력해주세요.");
                 askHeight();
-            } else if (height < 0 || height > 30) {
-                console.log("\n0 이상 30 이하의 숫자를 입력해주세요.");
+            } else if (height < 1 || height > 30) {
+                console.log("\n1 이상 30 이하의 숫자를 입력해주세요.");
+                askHeight();
+            } else if (height !== parseInt(height)) {
+                console.log("\n정수를 입력하세요.");
                 askHeight();
             } else askCntOfMine();
         });
     }
     rl.question("가로 크기를 입력하세요.", function (line) {
-        width = parseInt(line);
+        width = Number(line);
         if (isNaN(width)) {
             console.log("\n숫자를 입력해주세요.");
             init();
-        } else if (width < 0 || width > 5) {
-            console.log("\n0 이상 5 이하의 숫자를 입력해주세요.");
+        } else if (width < 1 || width > 5) {
+            console.log("\n1 이상 5 이하의 숫자를 입력해주세요.");
+            init();
+        } else if (width !== parseInt(width)) {
+            console.log("\n정수를 입력하세요.");
             init();
         } else askHeight();
     });
@@ -74,14 +83,14 @@ const createMap = (width, height, cntOfMine) => {
 // 결과 map 을 보여주는 함수
 const showOpenMap = () => {
     for (let i = 0; i < height; i++) {
-        let str = "";
+        let rowStr = "";
         for (let j = 0; j < width; j++) {
             const neighbors = getNeighbors(j, i);
             map[i][j].cntOfNeighbors = neighbors.filter(neighbor => neighbor.isMine === 1).length;
             const cell = map[i][j].isMine ? "x" : map[i][j].cntOfNeighbors;
-            str += cell;
+            rowStr += cell;
         }
-        console.log(str);
+        console.log(rowStr);
     }
 }
 
@@ -89,12 +98,12 @@ const showOpenMap = () => {
 const showMap = () => {
     for (let i = 0; i < map.length; i++) {
         const row = map[i];
-        let str = "";
+        let rowStr = "";
         for (let j = 0; j < row.length; j++) {
             const cell = row[j].revealed ? row[j].cntOfNeighbors : "o";
-            str += cell;
+            rowStr += cell;
         }
-        console.log(str);
+        console.log(rowStr);
     }
 }
 
@@ -138,9 +147,7 @@ const revealMine = (x, y) => {
 
     // 주변 지뢰가 0개일 경우 주변 8칸 모두 열기
     if (revealedCell.cntOfNeighbors === 0) {
-        for (let neighbor of neighbors) {
-            revealMine(neighbor.x, neighbor.y);
-        }
+        for (let neighbor of neighbors) revealMine(neighbor.x, neighbor.y);
     }
 }
 
@@ -164,20 +171,38 @@ const gameWin = () => {
 // cell 을 선택하는 함수
 const waitUserInput = () => {
     showMap();
-    rl.question('탐색할 좌표를 입력하세요.', (line) => {
-        const [x, y] = line.split(',').map(e => parseInt(e));
-        if (map[y][x].isMine === 1) {
-            console.log("GAME OVER");
-            gameOver();
-        } else {
-            revealMine(x, y);
-            if (isWin()) {
-                console.log("YOU WIN");
-                gameWin();
+    const getCoordinate = () => {
+        rl.question('탐색할 좌표를 입력하세요.', (line) => {
+            const [x, y] = line.split(',').map(e => Number(e));
+            console.log(x, y);
+
+            if (isNaN(x) || isNaN(y)) {
+                console.log("\n숫자를 입력해주세요.");
+                getCoordinate();
+            } else if (x < 0 || x > width - 1 || y < 0 || y > height - 1) {
+                console.log(`\n범위 내의 숫자를 입력해주세요.`);
+                getCoordinate();
+            } else if (x !== parseInt(x) || y !== parseInt(y)) {
+                console.log("\n정수를 입력하세요.");
+                getCoordinate();
             } else {
-                waitUserInput()
+                // 지뢰 찾기
+                if (map[y][x].isMine === 1) {
+                    console.log("GAME OVER");
+                    gameOver();
+                } else {
+                    revealMine(x, y);
+                    if (isWin()) {
+                        console.log("YOU WIN");
+                        gameWin();
+                    } else {
+                        waitUserInput()
+                    }
+                }
             }
-        }
-    });
+        });
+    }
+    getCoordinate();
 }
+
 init();
